@@ -107,6 +107,4 @@ def send_data_to_crm(data):
         print('Помилка відправки данних')
 
 
-if __name__ == '__main_':
-    bot.polling(none_stop=True)
-
+bot.polling(none_stop=True)
