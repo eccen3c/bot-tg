@@ -10,7 +10,6 @@ bot = telebot.TeleBot(BOT_TOKEN)
 
 user_data = {}
 
-
 @bot.message_handler(commands=['start'])
 def start(message: types.Message) -> None:
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
