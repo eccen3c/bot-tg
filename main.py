@@ -7,9 +7,7 @@ from dotenv import load_dotenv
 load_dotenv()
 BOT_TOKEN = os.getenv('BOT_TOKEN')
 bot = telebot.TeleBot(BOT_TOKEN)
-
 user_data = {}
-
 
 @bot.message_handler(commands=['start'])
 def start(message: types.Message) -> None:
@@ -24,12 +22,10 @@ def start(message: types.Message) -> None:
         reply_markup=markup
     )
 
-
 @bot.message_handler(content_types=['text'])
 def bot_message(message: types.Message) -> None:
     if message.chat.type == 'private':
         if message.text == 'Записатись на зустріч':
-
             user_data[message.chat.id] = {}
             bot.send_message(
                 message.chat.id,
@@ -40,7 +36,6 @@ def bot_message(message: types.Message) -> None:
         else:
             bot.send_message(message.chat.id, "Такої команди немає")
 
-
 def get_firstname(message: types.Message) -> None:
     user_data[message.chat.id]['first_name'] = message.text
     bot.send_message(
@@ -49,7 +44,6 @@ def get_firstname(message: types.Message) -> None:
     )
     bot.register_next_step_handler(message, get_lastname)
 
-
 def get_lastname(message: types.Message) -> None:
     user_data[message.chat.id]['last_name'] = message.text
     bot.send_message(
@@ -57,7 +51,6 @@ def get_lastname(message: types.Message) -> None:
         "Дякую, також напишіть ваш email"
     )
     bot.register_next_step_handler(message, get_email)
-
 
 def get_email(message: types.Message) -> None:
     user_data[message.chat.id]['email'] = message.text
@@ -72,7 +65,6 @@ def get_email(message: types.Message) -> None:
         reply_markup=markup
     )
     bot.register_next_step_handler(message, get_time)
-
 
 def get_time(message: types.Message) -> None:
     user_data[message.chat.id]['time'] = message.text
@@ -91,7 +83,6 @@ def get_time(message: types.Message) -> None:
         reply_markup=markup
     )
 
-
 def send_data_to_crm(data):
     url = 'https://hook.eu2.make.com/lpl68r47bpl5to15jxmgv91a922uyg9a'
     data_file = {
@@ -107,4 +98,5 @@ def send_data_to_crm(data):
         print('Помилка відправки данних')
 
 
-bot.polling(none_stop=True)
+if __name__ == '__main__':
+    bot.polling(none_stop=True)
