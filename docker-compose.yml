@@ -1,0 +1,8 @@
+services:
+  back:
+    build:
+      context: .
+    volumes:
+      - .:/code
+    env_file:
+      - .env
