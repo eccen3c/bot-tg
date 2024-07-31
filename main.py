@@ -80,9 +80,8 @@ def get_time(message: types.Message) -> None:
         "Якщо бажаєте записатися ще раз, натисніть кнопку нижче.",
         reply_markup=markup
     )
-
 def send_data_to_crm(data):
-    url = 'https://hook.eu2.make.com/lpl68r47bpl5to15jxmgv91a922uyg9a'
+    url = os.getenv('URL')
     data_file = {
         'first_name': data['first_name'],
         'last_name': data['last_name'],
