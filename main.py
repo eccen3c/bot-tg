@@ -1,99 +1,139 @@
-import os
+import asyncio
 import requests
-import telebot
-from telebot import types
+from telegram import Update, ReplyKeyboardMarkup, ReplyKeyboardRemove
+from telegram.ext import (
+    ApplicationBuilder,
+    CommandHandler,
+    ContextTypes,
+    MessageHandler,
+    filters,
+    ConversationHandler
+)
 
-BOT_TOKEN = os.getenv('BOT_TOKEN')
-bot = telebot.TeleBot(BOT_TOKEN)
-user_data = {}
+# Определяем состояния разговора
+ASK_NAME, ASK_SURNAME, ASK_EMAIL, ASK_TIME = range(4)
 
-@bot.message_handler(commands=['start'])
-def start(message: types.Message) -> None:
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    item1 = types.KeyboardButton('Записатись на зустріч')
-    markup.add(item1)
-    bot.send_message(
-        message.chat.id,
-        'Привіт, %(name)s' % {
-            "name": message.from_user.first_name
-        },
-        reply_markup=markup
+
+# Функция обработчика команды /start
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    # Создание клавиатуры с кнопкой
+    keyboard = [['Записатись на зустріч']]
+    reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+
+    # Отправка сообщения с клавиатурой
+    await update.message.reply_text('Привіт!', reply_markup=reply_markup)
+    return ConversationHandler.END
+
+
+
+async def appointment(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    await update.message.reply_text(
+        'Будь-ласка, введіть ваше імя:',
+        reply_markup=ReplyKeyboardRemove()
+    )
+    return ASK_NAME
+
+
+
+async def ask_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    context.user_data['name'] = update.message.text
+    await update.message.reply_text('Будь-ласка, введіть вашу фамілію:')
+    return ASK_SURNAME
+
+
+
+async def ask_surname(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    context.user_data['surname'] = update.message.text
+    await update.message.reply_text('Будь-ласка, введіть ваш e-mail:')
+    return ASK_EMAIL
+
+
+
+async def ask_email(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    context.user_data['email'] = update.message.text
+
+
+    keyboard = [
+        ['11:00-13:30', '14:00-17:00', '17:00-19:00']
+    ]
+    reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
+
+    await update.message.reply_text('Виберіть проміжок часу о якій вам удобно подзвонити:', reply_markup=reply_markup)
+    return ASK_TIME
+
+
+
+async def ask_time(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    context.user_data['time'] = update.message.text
+    name = context.user_data['name']
+    surname = context.user_data['surname']
+    email = context.user_data['email']
+    time = context.user_data['time']
+
+    await update.message.reply_text(
+        text=f'Дякую, {name} {surname}! Ви записані на зустріч.\nВаш e-mail: {email}\nЧас дзвінку: {time}',
+        reply_markup=ReplyKeyboardRemove()
     )
 
-@bot.message_handler(content_types=['text'])
-def bot_message(message: types.Message) -> None:
-    if message.chat.type == 'private':
-        if message.text == 'Записатись на зустріч':
-            user_data[message.chat.id] = {}
-            bot.send_message(
-                message.chat.id,
-                "Чудово, напишіть ваше ім'я",
-                reply_markup=types.ReplyKeyboardRemove()
-            )
-            bot.register_next_step_handler(message, get_firstname)
-        else:
-            bot.send_message(message.chat.id, "Такої команди немає")
 
-def get_firstname(message: types.Message) -> None:
-    user_data[message.chat.id]['first_name'] = message.text
-    bot.send_message(
-        message.chat.id,
-        "Дякую, напишіть вашу фамілію"
-    )
-    bot.register_next_step_handler(message, get_lastname)
+    url = 'https://hook.eu2.make.com/lpl68r47bpl5to15jxmgv91a922uyg9a'
 
-def get_lastname(message: types.Message) -> None:
-    user_data[message.chat.id]['last_name'] = message.text
-    bot.send_message(
-        message.chat.id,
-        "Дякую, також напишіть ваш email"
-    )
-    bot.register_next_step_handler(message, get_email)
 
-def get_email(message: types.Message) -> None:
-    user_data[message.chat.id]['email'] = message.text
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    time1 = types.KeyboardButton('11:00-13:30')
-    time2 = types.KeyboardButton('14:00-17:00')
-    time3 = types.KeyboardButton('17:00-19:00')
-    markup.add(time1, time2, time3)
-    bot.send_message(
-        message.chat.id,
-        "Оберіть проміжок часу о якій ви хочете отримати дзвінок від нашого спеціаліста",
-        reply_markup=markup
-    )
-    bot.register_next_step_handler(message, get_time)
-
-def get_time(message: types.Message) -> None:
-    user_data[message.chat.id]['time'] = message.text
-    bot.send_message(
-        message.chat.id,
-        "Ви були успішно записані на прийом!",
-        reply_markup=types.ReplyKeyboardRemove()
-    )
-    send_data_to_crm(user_data[message.chat.id])
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    item1 = types.KeyboardButton('Записатись на зустріч')
-    markup.add(item1)
-    bot.send_message(
-        message.chat.id,
-        "Якщо бажаєте записатися ще раз, натисніть кнопку нижче.",
-        reply_markup=markup
-    )
-def send_data_to_crm(data):
-    url = os.getenv('URL')
     data_file = {
-        'first_name': data['first_name'],
-        'last_name': data['last_name'],
-        'email': data['email'],
-        'time': data['time']
+        'first_name': name,
+        'last_name': surname,
+        'email': email,
+        'time': time
     }
-    response = requests.post(url, json=data_file)
-    if response.status_code == 200:
-        print('Дані успішно відправлені')
-    else:
-        print('Помилка відправки данних')
+
+
+    try:
+        response = requests.post(url, json=data_file)
+        if response.status_code == 200:
+            print('Дані успішно відправлені')
+        else:
+            print(f'Помилка відправки даних, статус-код: {response.status_code}')
+    except requests.exceptions.RequestException as e:
+        print(f'Виникла помилка під час відправки даних: {e}')
+
+    return ConversationHandler.END
+
+
+
+async def main() -> None:
+
+    app = ApplicationBuilder().token('6155476263:AAFyMG6DaokGWflvHHaUAKc0kAF6x0h4uWI').build()
+
+
+    conv_handler = ConversationHandler(
+        entry_points=[MessageHandler(filters.TEXT & filters.Regex('^Записатись на зустріч$'), appointment)],
+        states={
+            ASK_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_name)],
+            ASK_SURNAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_surname)],
+            ASK_EMAIL: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_email)],
+            ASK_TIME: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_time)],
+        },
+        fallbacks=[CommandHandler('start', start)]
+    )
+
+
+    app.add_handler(CommandHandler('start', start))
+    app.add_handler(conv_handler)
+
+
+    await app.initialize()
+    await app.start()
+
+    try:
+        await app.updater.start_polling()
+        while True:
+            await asyncio.sleep(1)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        await app.updater.stop()
+        await app.shutdown()
 
 
 if __name__ == '__main__':
-    bot.polling(none_stop=True)
+    asyncio.run(main())
