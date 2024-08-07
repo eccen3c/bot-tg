@@ -1,4 +1,5 @@
 import asyncio
+import os
 import requests
 from telegram import Update, ReplyKeyboardMarkup, ReplyKeyboardRemove
 from telegram.ext import (
@@ -9,6 +10,10 @@ from telegram.ext import (
     filters,
     ConversationHandler
 )
+# tokens
+TOKEN = os.getenv('BOT_TOKEN')
+URL = os.getenv('URL')
+url = URL
 
 # Определяем состояния разговора
 ASK_NAME, ASK_SURNAME, ASK_EMAIL, ASK_TIME = range(4)
@@ -76,8 +81,6 @@ async def ask_time(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     )
 
 
-    url = 'https://hook.eu2.make.com/lpl68r47bpl5to15jxmgv91a922uyg9a'
-
 
     data_file = {
         'first_name': name,
@@ -102,7 +105,7 @@ async def ask_time(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 async def main() -> None:
 
-    app = ApplicationBuilder().token('6155476263:AAFyMG6DaokGWflvHHaUAKc0kAF6x0h4uWI').build()
+    app = ApplicationBuilder().token(TOKEN).build()
 
 
     conv_handler = ConversationHandler(
