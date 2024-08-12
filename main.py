@@ -1,7 +1,7 @@
 import asyncio
+import logging
 import os
 
-import requests
 from telegram import Update, ReplyKeyboardMarkup, ReplyKeyboardRemove
 from telegram.ext import (
     ApplicationBuilder,
@@ -12,14 +12,22 @@ from telegram.ext import (
     ConversationHandler
 )
 
+from webhook_service import send, WebhookServiceError
+
 # tokens
-BOT_API_TOKEN = os.getenv('BOT_TOKEN')
+BOT_API_TOKEN = os.getenv('BOT_API_TOKEN')
 WEBHOOK_URL = os.getenv('URL')
+
+logging.basicConfig(
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    level=logging.WARNING,
+    filename='logs/errors.log',
+)
 
 ASK_NAME, ASK_SURNAME, ASK_EMAIL, ASK_TIME = range(4)
 
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+async def handle_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     # Создание клавиатуры с кнопкой (Creating keys with a key)
     keyboard = [['Записатись на зустріч']]
     reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
@@ -76,25 +84,21 @@ async def handle_ask_time_message(update: Update, context: ContextTypes.DEFAULT_
     }
 
     try:
-        response = requests.post(WEBHOOK_URL, json=data_file)
-        if response.status_code == 200:
-            print('Дані успішно відправлені')
-            await update.message.reply_text(
-                text='Дякую, %(name)s %(surname)s! Ви записані на зустріч.\nВаш e-mail: %(email)s\nЧас дзвінку: %(time)s' % {
-                    'name': name,
-                    'surname': surname,
-                    'email': email,
-                    'time': time
-                },
-                reply_markup=ReplyKeyboardRemove()
-            )
-        else:
-            print(f'Помилка відправки даних, статус-код: {response.status_code}')
-
-    except requests.exceptions.RequestException as e:
-        print(f'Виникла помилка під час відправки даних: {e}')
+        send(data_file, WEBHOOK_URL)
+        logging.info('data send successfully')
         await update.message.reply_text(
-            text=f'Під час відправки даних виникла помилка, спробуйте ще раз.',
+            text='Дякую, %(name)s %(surname)s! Ви записані на зустріч.\nВаш e-mail: %(email)s\nЧас дзвінку: %(time)s' % {
+                'name': name,
+                'surname': surname,
+                'email': email,
+                'time': time
+            },
+            reply_markup=ReplyKeyboardRemove()
+        )
+    except WebhookServiceError as e:
+        logging.error('Error sending data')
+        await update.message.reply_text(
+            text='Виникла помилка під час відправки даних, спробуйте ще раз',
             reply_markup=ReplyKeyboardRemove()
         )
 
@@ -113,10 +117,10 @@ async def main() -> None:
             ASK_EMAIL: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_ask_email_message)],
             ASK_TIME: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_ask_time_message)],
         },
-        fallbacks=[CommandHandler('start', start)]
+        fallbacks=[CommandHandler('start', handle_start)]
     )
 
-    app.add_handler(CommandHandler('start', start))
+    app.add_handler(CommandHandler('start', handle_start))
     app.add_handler(conv_handler)
 
     await app.initialize()
